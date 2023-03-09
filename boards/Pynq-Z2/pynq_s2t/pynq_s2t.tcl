@@ -1,6 +1,6 @@
 
 ################################################################
-# This is a generated script based on design: base
+# This is a generated script based on design: block_design
 #
 # Though there are limitations about the generated script,
 # the main purpose of this utility is to make learning
@@ -35,7 +35,7 @@ if { [string first $scripts_vivado_version $current_vivado_version] == -1 } {
 ################################################################
 
 # To test this script, run the following commands from Vivado Tcl console:
-# source base_script.tcl
+# source block_design_script.tcl
 
 # If there is no project opened, this script will create a
 # project, but make sure you do not have an existing project
@@ -124,10 +124,12 @@ set bCheckIPs 1
 if { $bCheckIPs == 1 } {
    set list_check_ips "\ 
 xilinx.com:user:audio_codec_ctrl:1.0\
+xilinx.com:ip:axis_subset_converter:1.1\
 xilinx.com:ip:clk_wiz:6.0\
 xilinx.com:ip:processing_system7:5.5\
 xilinx.com:ip:proc_sys_reset:5.0\
 xilinx.com:ip:axi_intc:4.1\
+xilinx.com:ip:v_mix:5.1\
 xilinx.com:ip:axi_vdma:6.3\
 xilinx.com:ip:xlconcat:2.1\
 xilinx.com:ip:axis_register_slice:1.1\
@@ -664,6 +666,10 @@ proc create_hier_cell_video { parentCell nameHier } {
 
   create_bd_intf_pin -mode Master -vlnv digilentinc.com:interface:tmds_rtl:1.0 TMDS_out
 
+  create_bd_intf_pin -mode Slave -vlnv xilinx.com:interface:axis_rtl:1.0 input_stream
+
+  create_bd_intf_pin -mode Master -vlnv xilinx.com:interface:axis_rtl:1.0 out_stream
+
 
   # Create pins
   create_bd_pin -dir I -type clk clk_100M
@@ -734,6 +740,8 @@ proc create_hier_cell_video { parentCell nameHier } {
   # Create interface connections
   connect_bd_intf_net -intf_net Conn1 [get_bd_intf_pins TMDS_out] [get_bd_intf_pins hdmi_out/TMDS_out]
   connect_bd_intf_net -intf_net Conn2 [get_bd_intf_pins S_AXI] [get_bd_intf_pins axi_interconnect_0/S00_AXI]
+  connect_bd_intf_net -intf_net Conn3 [get_bd_intf_pins out_stream] [get_bd_intf_pins hdmi_in/out_stream]
+  connect_bd_intf_net -intf_net Conn4 [get_bd_intf_pins input_stream] [get_bd_intf_pins axi_vdma/S_AXIS_S2MM]
   connect_bd_intf_net -intf_net TMDS_1 [get_bd_intf_pins TMDS_in] [get_bd_intf_pins hdmi_in/TMDS_in]
   connect_bd_intf_net -intf_net axi_interconnect_0_M00_AXI [get_bd_intf_pins axi_interconnect_0/M00_AXI] [get_bd_intf_pins axi_vdma/S_AXI_LITE]
   connect_bd_intf_net -intf_net axi_interconnect_0_M01_AXI [get_bd_intf_pins axi_interconnect_0/M01_AXI] [get_bd_intf_pins hdmi_out/S01_AXILite]
@@ -750,7 +758,6 @@ proc create_hier_cell_video { parentCell nameHier } {
   connect_bd_intf_net -intf_net axi_vdma_0_M_AXI_MM2S [get_bd_intf_pins axi_mem_intercon/S01_AXI] [get_bd_intf_pins axi_vdma/M_AXI_MM2S]
   connect_bd_intf_net -intf_net axi_vdma_0_M_AXI_S2MM [get_bd_intf_pins axi_mem_intercon/S00_AXI] [get_bd_intf_pins axi_vdma/M_AXI_S2MM]
   connect_bd_intf_net -intf_net frontend_DDC [get_bd_intf_pins DDC] [get_bd_intf_pins hdmi_in/DDC]
-  connect_bd_intf_net -intf_net in_pixelformat_M00_AXIS [get_bd_intf_pins axi_vdma/S_AXIS_S2MM] [get_bd_intf_pins hdmi_in/out_stream]
 
   # Create port connections
   connect_bd_net -net ARESETN_1 [get_bd_pins ic_resetn_clk100M] [get_bd_pins axi_interconnect_0/ARESETN]
@@ -838,6 +845,22 @@ proc create_root_design { parentCell } {
 
   # Create instance: audio_codec_ctrl_0, and set properties
   set audio_codec_ctrl_0 [ create_bd_cell -type ip -vlnv xilinx.com:user:audio_codec_ctrl:1.0 audio_codec_ctrl_0 ]
+
+  # Create instance: axis_subset_input_stream, and set properties
+  set axis_subset_input_stream [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_subset_converter:1.1 axis_subset_input_stream ]
+  set_property -dict [ list \
+   CONFIG.M_TDATA_NUM_BYTES {4} \
+   CONFIG.S_TDATA_NUM_BYTES {3} \
+   CONFIG.TDATA_REMAP {8'b00000000,tdata[23:0]} \
+ ] $axis_subset_input_stream
+
+  # Create instance: axis_subset_out_stream, and set properties
+  set axis_subset_out_stream [ create_bd_cell -type ip -vlnv xilinx.com:ip:axis_subset_converter:1.1 axis_subset_out_stream ]
+  set_property -dict [ list \
+   CONFIG.M_TDATA_NUM_BYTES {3} \
+   CONFIG.S_TDATA_NUM_BYTES {4} \
+   CONFIG.TDATA_REMAP {tdata[23:0]} \
+ ] $axis_subset_out_stream
 
   # Create instance: clk_wiz_10MHz, and set properties
   set clk_wiz_10MHz [ create_bd_cell -type ip -vlnv xilinx.com:ip:clk_wiz:6.0 clk_wiz_10MHz ]
@@ -1722,7 +1745,7 @@ proc create_root_design { parentCell } {
    CONFIG.PCW_USE_FABRIC_INTERRUPT {1} \
    CONFIG.PCW_USE_HIGH_OCM {0} \
    CONFIG.PCW_USE_M_AXI_GP0 {1} \
-   CONFIG.PCW_USE_M_AXI_GP1 {0} \
+   CONFIG.PCW_USE_M_AXI_GP1 {1} \
    CONFIG.PCW_USE_PROC_EVENT_BUS {0} \
    CONFIG.PCW_USE_PS_SLCR_REGISTERS {0} \
    CONFIG.PCW_USE_S_AXI_ACP {0} \
@@ -1759,6 +1782,12 @@ proc create_root_design { parentCell } {
    CONFIG.S00_HAS_REGSLICE {1} \
  ] $ps7_0_axi_periph
 
+  # Create instance: ps7_0_axi_periph_1, and set properties
+  set ps7_0_axi_periph_1 [ create_bd_cell -type ip -vlnv xilinx.com:ip:axi_interconnect:2.1 ps7_0_axi_periph_1 ]
+  set_property -dict [ list \
+   CONFIG.NUM_MI {1} \
+ ] $ps7_0_axi_periph_1
+
   # Create instance: rst_ps7_0_fclk0, and set properties
   set rst_ps7_0_fclk0 [ create_bd_cell -type ip -vlnv xilinx.com:ip:proc_sys_reset:5.0 rst_ps7_0_fclk0 ]
 
@@ -1771,18 +1800,33 @@ proc create_root_design { parentCell } {
   # Create instance: video
   create_hier_cell_video [current_bd_instance .] video
 
+  # Create instance: video_mixer, and set properties
+  set video_mixer [ create_bd_cell -type ip -vlnv xilinx.com:ip:v_mix:5.1 video_mixer ]
+  set_property -dict [ list \
+   CONFIG.LOGO_LAYER {true} \
+   CONFIG.MAX_COLS {1920} \
+   CONFIG.MAX_ROWS {1080} \
+   CONFIG.NR_LAYERS {1} \
+ ] $video_mixer
+
   # Create interface connections
   connect_bd_intf_net -intf_net axi_mem_intercon_M00_AXI [get_bd_intf_pins ps7_0/S_AXI_HP0] [get_bd_intf_pins video/M_AXI]
+  connect_bd_intf_net -intf_net axis_subset_input_stream_M_AXIS [get_bd_intf_pins axis_subset_input_stream/M_AXIS] [get_bd_intf_pins video/input_stream]
+  connect_bd_intf_net -intf_net axis_subset_out_stream_M_AXIS [get_bd_intf_pins axis_subset_out_stream/M_AXIS] [get_bd_intf_pins video_mixer/s_axis_video]
   connect_bd_intf_net -intf_net dvi2rgb_0_DDC [get_bd_intf_ports hdmi_in_ddc] [get_bd_intf_pins video/DDC]
   connect_bd_intf_net -intf_net hdmi_in_1 [get_bd_intf_ports hdmi_in] [get_bd_intf_pins video/TMDS_in]
   connect_bd_intf_net -intf_net processing_system7_0_FIXED_IO [get_bd_intf_ports FIXED_IO] [get_bd_intf_pins ps7_0/FIXED_IO]
   connect_bd_intf_net -intf_net ps7_0_DDR [get_bd_intf_ports DDR] [get_bd_intf_pins ps7_0/DDR]
   connect_bd_intf_net -intf_net ps7_0_IIC_1 [get_bd_intf_ports IIC_1] [get_bd_intf_pins ps7_0/IIC_1]
   connect_bd_intf_net -intf_net ps7_0_M_AXI_GP0 [get_bd_intf_pins ps7_0/M_AXI_GP0] [get_bd_intf_pins ps7_0_axi_periph/S00_AXI]
+  connect_bd_intf_net -intf_net ps7_0_M_AXI_GP1 [get_bd_intf_pins ps7_0/M_AXI_GP1] [get_bd_intf_pins ps7_0_axi_periph_1/S00_AXI]
+  connect_bd_intf_net -intf_net ps7_0_axi_periph_1_M00_AXI [get_bd_intf_pins ps7_0_axi_periph_1/M00_AXI] [get_bd_intf_pins video_mixer/s_axi_CTRL]
   connect_bd_intf_net -intf_net ps7_0_axi_periph_M00_AXI [get_bd_intf_pins ps7_0_axi_periph/M00_AXI] [get_bd_intf_pins system_interrupts/s_axi]
   connect_bd_intf_net -intf_net ps7_0_axi_periph_M01_AXI [get_bd_intf_pins ps7_0_axi_periph/M01_AXI] [get_bd_intf_pins video/S_AXI]
   connect_bd_intf_net -intf_net ps7_0_axi_periph_M02_AXI [get_bd_intf_pins audio_codec_ctrl_0/S_AXI] [get_bd_intf_pins ps7_0_axi_periph/M02_AXI]
   connect_bd_intf_net -intf_net video_TMDS1 [get_bd_intf_ports hdmi_out] [get_bd_intf_pins video/TMDS_out]
+  connect_bd_intf_net -intf_net video_mixer_m_axis_video [get_bd_intf_pins axis_subset_input_stream/S_AXIS] [get_bd_intf_pins video_mixer/m_axis_video]
+  connect_bd_intf_net -intf_net video_out_stream [get_bd_intf_pins axis_subset_out_stream/S_AXIS] [get_bd_intf_pins video/out_stream]
 
   # Create port connections
   connect_bd_net -net SDATA_I_1 [get_bd_ports sdata_i] [get_bd_pins audio_codec_ctrl_0/sdata_i]
@@ -1794,13 +1838,13 @@ proc create_root_design { parentCell } {
   connect_bd_net -net clk_wiz_10MHz_clk_out1 [get_bd_ports audio_clk_10MHz] [get_bd_pins clk_wiz_10MHz/clk_out1]
   connect_bd_net -net hdmi_out_hpd_video_gpio_io_o [get_bd_ports hdmi_out_hpd] [get_bd_pins video/hdmi_out_hpd]
   connect_bd_net -net ps7_0_FCLK_CLK0 [get_bd_pins audio_codec_ctrl_0/s_axi_aclk] [get_bd_pins clk_wiz_10MHz/clk_in1] [get_bd_pins ps7_0/FCLK_CLK0] [get_bd_pins ps7_0/M_AXI_GP0_ACLK] [get_bd_pins ps7_0_axi_periph/ACLK] [get_bd_pins ps7_0_axi_periph/M00_ACLK] [get_bd_pins ps7_0_axi_periph/M01_ACLK] [get_bd_pins ps7_0_axi_periph/M02_ACLK] [get_bd_pins ps7_0_axi_periph/S00_ACLK] [get_bd_pins rst_ps7_0_fclk0/slowest_sync_clk] [get_bd_pins system_interrupts/s_axi_aclk] [get_bd_pins video/clk_100M]
-  connect_bd_net -net ps7_0_FCLK_CLK1 [get_bd_pins ps7_0/FCLK_CLK1] [get_bd_pins ps7_0/S_AXI_HP0_ACLK] [get_bd_pins rst_ps7_0_fclk1/slowest_sync_clk] [get_bd_pins video/clk_142M]
+  connect_bd_net -net ps7_0_FCLK_CLK1 [get_bd_pins axis_subset_input_stream/aclk] [get_bd_pins axis_subset_out_stream/aclk] [get_bd_pins ps7_0/FCLK_CLK1] [get_bd_pins ps7_0/M_AXI_GP1_ACLK] [get_bd_pins ps7_0/S_AXI_HP0_ACLK] [get_bd_pins ps7_0_axi_periph_1/ACLK] [get_bd_pins ps7_0_axi_periph_1/M00_ACLK] [get_bd_pins ps7_0_axi_periph_1/S00_ACLK] [get_bd_pins rst_ps7_0_fclk1/slowest_sync_clk] [get_bd_pins video/clk_142M] [get_bd_pins video_mixer/ap_clk]
   connect_bd_net -net ps7_0_FCLK_CLK2 [get_bd_pins ps7_0/FCLK_CLK2] [get_bd_pins video/clk_200M]
   connect_bd_net -net ps7_0_FCLK_RESET0_N [get_bd_pins ps7_0/FCLK_RESET0_N] [get_bd_pins rst_ps7_0_fclk0/ext_reset_in] [get_bd_pins rst_ps7_0_fclk1/ext_reset_in] [get_bd_pins video/system_resetn]
   connect_bd_net -net rst_ps7_0_fclk0_interconnect_aresetn [get_bd_pins ps7_0_axi_periph/ARESETN] [get_bd_pins rst_ps7_0_fclk0/interconnect_aresetn] [get_bd_pins video/ic_resetn_clk100M]
   connect_bd_net -net rst_ps7_0_fclk0_peripheral_aresetn [get_bd_pins audio_codec_ctrl_0/s_axi_aresetn] [get_bd_pins clk_wiz_10MHz/resetn] [get_bd_pins ps7_0_axi_periph/M00_ARESETN] [get_bd_pins ps7_0_axi_periph/M01_ARESETN] [get_bd_pins ps7_0_axi_periph/M02_ARESETN] [get_bd_pins ps7_0_axi_periph/S00_ARESETN] [get_bd_pins rst_ps7_0_fclk0/peripheral_aresetn] [get_bd_pins system_interrupts/s_axi_aresetn] [get_bd_pins video/periph_resetn_clk100M]
   connect_bd_net -net rst_ps7_0_fclk1_interconnect_aresetn [get_bd_pins rst_ps7_0_fclk1/interconnect_aresetn] [get_bd_pins video/ic_resetn_clk142M]
-  connect_bd_net -net rst_ps7_0_fclk1_peripheral_aresetn [get_bd_pins rst_ps7_0_fclk1/peripheral_aresetn] [get_bd_pins video/periph_resetn_clk142M]
+  connect_bd_net -net rst_ps7_0_fclk1_peripheral_aresetn [get_bd_pins axis_subset_input_stream/aresetn] [get_bd_pins axis_subset_out_stream/aresetn] [get_bd_pins ps7_0_axi_periph_1/ARESETN] [get_bd_pins ps7_0_axi_periph_1/M00_ARESETN] [get_bd_pins ps7_0_axi_periph_1/S00_ARESETN] [get_bd_pins rst_ps7_0_fclk1/peripheral_aresetn] [get_bd_pins video/periph_resetn_clk142M] [get_bd_pins video_mixer/ap_rst_n]
   connect_bd_net -net system_interrupts_irq [get_bd_pins ps7_0/IRQ_F2P] [get_bd_pins system_interrupts/irq]
   connect_bd_net -net video_video_irq [get_bd_pins system_interrupts/intr] [get_bd_pins video/video_irq]
 
@@ -1815,6 +1859,7 @@ proc create_root_design { parentCell } {
   assign_bd_address -offset 0x43C40000 -range 0x00010000 -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs video/hdmi_in/pixel_pack/s_axi_control/Reg] -force
   assign_bd_address -offset 0x43C70000 -range 0x00010000 -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs video/hdmi_out/pixel_unpack/s_axi_control/Reg] -force
   assign_bd_address -offset 0x41800000 -range 0x00010000 -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs system_interrupts/S_AXI/Reg] -force
+  assign_bd_address -offset 0x83C00000 -range 0x00040000 -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs video_mixer/s_axi_CTRL/Reg] -force
   assign_bd_address -offset 0x43C30000 -range 0x00010000 -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs video/hdmi_in/frontend/vtc_in/ctrl/Reg] -force
   assign_bd_address -offset 0x43C20000 -range 0x00010000 -target_address_space [get_bd_addr_spaces ps7_0/Data] [get_bd_addr_segs video/hdmi_out/frontend/vtc_out/ctrl/Reg] -force
   assign_bd_address -offset 0x10000000 -range 0x10000000 -target_address_space [get_bd_addr_spaces video/axi_vdma/Data_MM2S] [get_bd_addr_segs ps7_0/S_AXI_HP0/HP0_DDR_LOWOCM] -force
