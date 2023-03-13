@@ -21,6 +21,7 @@
 *vivado.txt
 *vivado.jou
 *vivado.log
+**/NA
 
 # Ignore ./rfstrath/rfstrath/
 **/block_design
