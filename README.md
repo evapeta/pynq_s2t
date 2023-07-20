@@ -1,3 +1,6 @@
+## Offline Speech-to-Text Generator
+Project was a guide through embedded system design utilising PYNQ framework within the processing system of PYNQ-Z2 and implementing hardware designs upon ZYNQ-7020 programmable logic fabric. Along with student’s educational benefit, it was desired to create something novel through extending the capabilities of the video pipeline and utilising the PYNQ-framework, in a new way. Through the recent prevalence of offline communication, it was chosen to create a widening access feature of offline speech-to-text transcription. This would enable communication worldwide, while also providing security and privacy. Transcribed videos increase the viewer’s concentration and aids comprehension, further improving education. 
+
 # pynq_s2t
  Setup instruction for rebuilding the project in Vivado.
 
